@@ -10,3 +10,10 @@ opencv-python
 omegaconf
 controlnet-aux==0.0.7
 accelerate==0.26.1
+
+# ── Evaluation dependencies ──────────────────────────────────────────────────
+open-clip-torch      # CLIP Score
+lpips                # Learned Perceptual Image Patch Similarity
+scikit-image         # SSIM (structural_similarity)
+torchvision          # NIMA (MobileNetV2 backbone)
+pandas               # optional: for CSV export of evaluation results

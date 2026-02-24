@@ -16,6 +16,7 @@ import torch.nn.functional as F
 from utils.generate_spatial_map import img2cond
 from utils.image_processor import preprocess_image, tensor2PIL, mask4image
 from utils.visualize import t2i_visualize, spatial_visualize, ipa_visualize, ipa_spatial_visualize
+from utils.evaluation import evaluate_results
 from daam import trace, set_seed
 import matplotlib.pyplot as plt
 # import xformers
@@ -203,6 +204,17 @@ image_list = pipe(
     ip_adapter_image=ip_image,
     model_list=model_list,
     inter_save=False,
+)
+
+# ── Evaluation (CLIP, NIMA, SSIM non-mask, LPIPS non-mask) ──────────────────
+config_name = os.path.splitext(os.path.basename(args.config_file))[0]
+evaluate_results(
+    image_list=image_list,
+    original_image=image,
+    mask_image=mask_image,
+    prompt=config.prompt,
+    output_path=config.output_path,
+    config_name=config_name,
 )
 
 if "ipa" in model_list and "controlnet" in model_list:
