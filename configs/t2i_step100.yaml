@@ -1,12 +1,12 @@
-model_path: "/home/data/panlingzhi/models"
+model_path: "runwayml"
 output_path: "outputs"
 model_id: "stable-diffusion-v1-5"
 # model_id: "real_dream"
 
-input_image: "data/vase-sample.png"
-mask_image: "data/vase-mask.png"
-prompt: "vase"
-negative_prompt: ""
+input_image: "data/Brendhi.jpg"
+mask_image: "data/batik_mask.png"
+prompt: "traditional batik ornament, golden mandala pattern, intricate gold details on dark navy, batik style flat illustration, royal Javanese batik motif"
+negative_prompt: "photorealistic, blurry"
 
 cfg: 7.5
 W: 512
