@@ -144,7 +144,7 @@ def compute_clip_score(generated_image: Image.Image, prompt: str) -> float:
         txt_features = txt_features / txt_features.norm(dim=-1, keepdim=True)
         score = (img_features * txt_features).sum(dim=-1).item()
 
-    return round(float(score) * 100, 4)
+    return round(float(score), 4)
 
 
 def compute_nima_score(generated_image: Image.Image) -> float:
