@@ -180,6 +180,13 @@ class BatikInpaintingEditor:
         ).images[0]
 
         inpainted_crop = inpainted_crop.resize(crop_size, Image.LANCZOS)
+
+        # raw_inpainted_full: paste tanpa mask -> seluruh area crop diganti
+        # Digunakan HANYA untuk SSIM & LPIPS agar tidak trivially perfect
+        raw_inpainted_full = input_image.copy()
+        raw_inpainted_full.paste(inpainted_crop, (x1, y1))
+
+        # output final: paste WITH mask -> area di luar mask tetap original
         output = input_image.copy()
         paste_mask = crop_mask.resize(crop_size, Image.NEAREST).convert("L")
         output.paste(inpainted_crop, (x1, y1), paste_mask)
@@ -190,7 +197,7 @@ class BatikInpaintingEditor:
             mask_image=mask_image, prompt=prompt, scenario=scenario, seed=seed,
         )
         logger.info(f"   OK Result saved: {saved_path}")
-        return output, mask_image, seed
+        return output, raw_inpainted_full, mask_image, seed
 
     def _save_result(self, original_image, result_image, mask_image, prompt, scenario, seed):
         """
@@ -284,7 +291,7 @@ def inpaint_motif():
         original_mask_for_eval = mask_image.copy()
 
         try:
-            inpainted_image, mask_used, actual_seed = editor.inpaint_image(
+            inpainted_image, raw_inpainted_full, mask_used, actual_seed = editor.inpaint_image(
                 input_image=input_image, mask_image=mask_image,
                 prompt=prompt, scenario=scenario,
                 negative_prompt=negative_prompt, steps=steps,
@@ -306,20 +313,22 @@ def inpaint_motif():
                 logger.info("   Running evaluation metrics...")
                 # Pastikan semua image sama size untuk evaluasi
                 eval_size = input_image.size
-                inpainted_eval = inpainted_image.resize(eval_size, Image.LANCZOS)
-                mask_eval = original_mask_for_eval.resize(eval_size, Image.NEAREST).convert("RGB")
+                final_eval = inpainted_image.resize(eval_size, Image.LANCZOS)      # untuk CLIP & NIMA
+                raw_eval   = raw_inpainted_full.resize(eval_size, Image.LANCZOS)   # untuk SSIM & LPIPS
+                mask_eval  = original_mask_for_eval.resize(eval_size, Image.NEAREST).convert("RGB")
 
                 # Debug: cek apakah mask benar-benar ada isinya
                 mask_np_check = np.array(original_mask_for_eval)
                 white_pixels = np.sum(mask_np_check > 127)
                 total_pixels = mask_np_check.size
                 logger.info(f"   Mask check: {white_pixels}/{total_pixels} white pixels ({100*white_pixels/total_pixels:.1f}%)")
+                logger.info(f"   Using raw_inpainted_full for SSIM/LPIPS (avoids trivially-perfect scores)")
 
                 for metric, fn, args in [
-                    ("clip_score",     compute_clip_score,     (inpainted_eval, prompt)),
-                    ("nima_score",     compute_nima_score,     (inpainted_eval,)),
-                    ("ssim_non_mask",  compute_ssim_non_mask,  (input_image, inpainted_eval, mask_eval)),
-                    ("lpips_non_mask", compute_lpips_non_mask, (input_image, inpainted_eval, mask_eval)),
+                    ("clip_score",     compute_clip_score,     (final_eval, prompt)),
+                    ("nima_score",     compute_nima_score,     (final_eval,)),
+                    ("ssim_non_mask",  compute_ssim_non_mask,  (input_image, raw_eval, mask_eval)),
+                    ("lpips_non_mask", compute_lpips_non_mask, (input_image, raw_eval, mask_eval)),
                 ]:
                     try:
                         eval_scores[metric] = fn(*args)
