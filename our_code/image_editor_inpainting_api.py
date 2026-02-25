@@ -280,6 +280,9 @@ def inpaint_motif():
         mask_image  = Image.open(mask_file.stream).convert('L')
         logger.info(f"Received image: {input_image.size}, mask: {mask_image.size}")
 
+        # ── simpan referensi mask ASLI sebelum diproses pipeline ──
+        original_mask_for_eval = mask_image.copy()
+
         try:
             inpainted_image, mask_used, actual_seed = editor.inpaint_image(
                 input_image=input_image, mask_image=mask_image,
@@ -301,12 +304,22 @@ def inpaint_motif():
             eval_scores = {}
             if run_eval and _EVAL_AVAILABLE:
                 logger.info("   Running evaluation metrics...")
-                mask_eval = mask_image.convert("RGB")
+                # Pastikan semua image sama size untuk evaluasi
+                eval_size = input_image.size
+                inpainted_eval = inpainted_image.resize(eval_size, Image.LANCZOS)
+                mask_eval = original_mask_for_eval.resize(eval_size, Image.NEAREST).convert("RGB")
+
+                # Debug: cek apakah mask benar-benar ada isinya
+                mask_np_check = np.array(original_mask_for_eval)
+                white_pixels = np.sum(mask_np_check > 127)
+                total_pixels = mask_np_check.size
+                logger.info(f"   Mask check: {white_pixels}/{total_pixels} white pixels ({100*white_pixels/total_pixels:.1f}%)")
+
                 for metric, fn, args in [
-                    ("clip_score",     compute_clip_score,     (inpainted_image, prompt)),
-                    ("nima_score",     compute_nima_score,     (inpainted_image,)),
-                    ("ssim_non_mask",  compute_ssim_non_mask,  (input_image, inpainted_image, mask_eval)),
-                    ("lpips_non_mask", compute_lpips_non_mask, (input_image, inpainted_image, mask_eval)),
+                    ("clip_score",     compute_clip_score,     (inpainted_eval, prompt)),
+                    ("nima_score",     compute_nima_score,     (inpainted_eval,)),
+                    ("ssim_non_mask",  compute_ssim_non_mask,  (input_image, inpainted_eval, mask_eval)),
+                    ("lpips_non_mask", compute_lpips_non_mask, (input_image, inpainted_eval, mask_eval)),
                 ]:
                     try:
                         eval_scores[metric] = fn(*args)
